@@ -1,12 +1,15 @@
 version: '3'
 services:
   db:
+    container_name: water_db
     image: postgres
     volumes:
       - ./tmp/db:/var/lib/postgresql/data
     environment:
       - POSTGRES_PASSWORD=password
+      
   web:
+    container_name: water_web
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,5 +17,31 @@ services:
       - .:/myapp
     ports:
       - "3000:3000"
+    environment:
+      REDIS_URL_SIDEKIQ: redis://water_redis:6379
     depends_on:
       - db
+      - redis
+
+  redis:
+    container_name: water_redis
+    image: redis:6.0.5-alpine
+    command: redis-server
+    ports:
+      - '6379:6379'
+    volumes:
+      - 'redis:/data'
+
+  sidekiq:
+    container_name: water_sidekiq
+    build: .
+    command: 'bundle exec sidekiq'
+    volumes:
+      - .:/myapp
+    environment:
+      REDIS_URL_SIDEKIQ: redis://water_redis:6379
+    depends_on:
+      - db
+      - redis
+volumes:
+  redis:
